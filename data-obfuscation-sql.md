@@ -44,7 +44,7 @@ Many of these methods rely on SQL Server’s built-in system functions for strin
 
 Prior to diving into the details of these obfuscation methods we need to explore the unique value of another system function, called RAND.
 
-The Value of RAND
+## The Value of RAND
 The RAND system function is not one that directly manipulates values for the benefit of obfuscation, but its ability to produce a reasonably random value makes it a valuable asset when implementing character scrambling or producing a numeric variance.
 
 One special consideration of the RAND system function is that when it is included in a user defined function an error will be returned when the user defined function is created.
@@ -70,6 +70,8 @@ GO
 
 STEP 2
 
+Now, we can obtain a random number in any user defined function with a simple call to our new view. In Listing 8-2, an example is provided that produces a random number between the values of 1 and 100.
+
 ```
 DECLARE @Rand float;
 DECLARE @MinVal int;
@@ -85,6 +87,19 @@ GO
 ```
 
 STEP 3
+## Character Scrambling
+Character scrambling is a process by which the characters contained within a given statement are re-ordered in such a way that its original value is obfuscated. For example, the name “Jane Smith” might be scrambled into “nSem Jatih”.
+
+This option does have its vulnerabilities. The process of cracking a scrambled word is often quite straightforward, and indeed is a source of entertainment for many, as evidenced by newspapers, puzzle publications and pre-movie entertainment.
+
+Cracking a scrambled word can be made more challenging by, for example, eliminating any repeating characters and returning only lower case letters. However, not all values will contain repeating values, so this technique may not be sufficient for protecting highly sensitive data.
+
+## The Character Scrambling UDF
+In the HomeLending database we will create a user defined function called Character_Scramble that performs character scrambling, which is shown in Listing 8-3. It will be referenced as needed in views and stored procedures that are selected to use this method of data obfuscation.
+
+Included in this user defined function is a reference to the vwRandom view that was created in Listing 8-1. In essence, this user defined function will loop through all of the characters of the value that is passed through the @OrigVal argument replacing each character with other randomly selected characters from the same string. For example, the value of “John” may result as “nJho”.
+
+In order for the appropriate users to utilize this user defined function permissions must be assigned. The GRANT EXECUTE command is included in the following script.
 
 ```
 Use HomeLending;
@@ -150,6 +165,22 @@ GO
 
 STEP 4
 
+This user defined function takes advantage of system functions such as DATALENGTH which provides the length of a value, SUBSTRING which is used to obtain a portion of a value, REPLACE which replaces a value with another value and LOWER which returns the value in lowercase characters. All are valuable to string manipulation.
+
+This UDF will be referenced in any views and stored procedures that are selected to use this method of data obfuscation, an example of which we’ll see in the next section.
+
+## Repeating Character Masking
+Over recent years the information that is presented on a credit card receipt has changed. In the past, it was not uncommon to find the entire primary account number printed upon the receipt. Today, this number still appears on credit card receipts; but only a few of the last numbers appear in plain text with the remainder of the numbers being replaced with a series of “x” or “*” characters. This is called a repeating character mask.
+
+This approach provides a level of protection for sensitive data, rendering it useless for transactional purposes, while providing enough information, the number’s last four digits, to identify the card on which the transaction was made.
+
+In the HomeLending database, we will create a user defined function called Character_Mask, as shown in Listing 8-4, which performs repeating character masking, which again can be referenced as needed in views and stored procedures that are selected to use this method of data obfuscation.
+
+This user defined function will modify the value that is passed through the @OrigVal argument and replace all of the characters with the character passed through the @MaskChar argument. The @InPlain argument defines the number of characters that will remain in plain text after this user defined function is executed. For example, the value of “Samsonite” may result in “xxxxxxite”.
+
+In order for the appropriate users to utilize this user defined function permissions must be assigned. The GRANT EXECUTE command is included in the script.
+
+
 ```
 Use HomeLending;
 GO
@@ -191,6 +222,14 @@ GO
 
 STEP 5
 
+This user defined function takes advantage of system functions such as DATALENGTH, which provides the length of a value, and REPLICATE which is used to repeat a given character for a defined number of iterations. Both of these are valuable to string manipulation.
+
+To illustrate the use of this, and our previous Character_Scramble user defined function, to present data in a masked format to the user, we will create a view in the HomeLending database, called vwLoanBorrowers, for the members of the Sensitive_high and Sensitive_medium database roles.
+
+This view, shown in Listing 8-5, will present to the lender case numbers, using the Character_Mask user defined function, and the borrower names using the Character_Scramble user defined function.
+
+
+
 ```
 Use HomeLending;
 GO
@@ -219,6 +258,15 @@ GO
 ```
 
 STEP 6
+
+## Numeric Variance
+Numeric variance is a process in which the numeric values that are stored within a development database can be changed, within a defined range, so as not to reflect their actual values within the production database. By defining a percentage of variance, say within 10% of the original value, the values remain realistic for development and testing purposes. The inclusion of a randomizer to the percentage that is applied to each row will prevent the disclosure of the actual value, through identification of its pattern.
+
+In the HomeLending database, we will create a user defined function called Numeric_Variance that increases or decreases the value of the value passed to it by some defined percent of variance, also passed as a parameter to the function. For example, if we want the value to change within 10% of its current value we would pass the value of 10 in the @ValPercent argument.
+
+A randomizer is added through the use of the vwRandom view that we created earlier in this article. This will vary the percent variance on a per execution basis. For example, the first execution may change the original value by 2%, while the second execution may change it by 6%.
+
+The script to create this Numeric_Variance function, which can be referenced as needed in other views and stored procedures, is shown in Listing 8-6.
 
 ```
 USE HomeLending;
@@ -255,6 +303,10 @@ GO
 ```
 
 STEP 7
+
+To employ this method of masking in a development database, simply use an UPDATE statement to change the column’s value to a new value, using our Numeric_Variance function, as shown in Listing 8-7.
+
+
 ```
 USE HomeLending;
 GO
