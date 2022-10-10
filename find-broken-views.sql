@@ -51,6 +51,7 @@ CLOSE tbl_cursor -- free the memory
 DEALLOCATE tbl_cursor
 
 SELECT * FROM #badViews
+-- CHECK IF THEY ARE BROKEN OR JUST REFERENCING OTHER VIEWS.
 
 DROP TABLE #badViews
 DROP TABLE #nullData
